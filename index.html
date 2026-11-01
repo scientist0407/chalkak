@@ -346,6 +346,7 @@ const DEFAULT_SETTINGS = () => ({
 });
 
 const PWA = !(window.claude && typeof window.claude.use === 'function');
+const APP_VERSION = '2026.11.01-3';
 /* ========== 저장소 ========== */
 const Store = {
   db: null, local: false, _subs: [], _writing: Promise.resolve(),
@@ -589,7 +590,7 @@ function viewHome() {
     ${hero}
     ${notice ? `<div class="grp">${notice}</div>` : ''}
     ${sec('돈의 흐름', `<div class="grp">${flow}</div>`)}
-    ${sec('계좌', `<div class="grp">${accCells}</div>`, '', `<button data-act="tab:assets">전체</button>`)}
+    ${sec('계좌', `<div class="grp">${accCells}${cell({ act: 'set:bank', icon: '<span class="ic sm blue">' + ico('book') + '</span>', t: 'WON통장 엑셀 가져오기', d: st.lastBank ? `마지막 ${shortDate(st.lastBank)}` : '거래내역 파일 하나로 한 번에', v: '', chev: true })}</div>`, '', `<button data-act="tab:assets">전체</button>`)}
     ${sec('최근 내역', `<div class="grp">${recent.length ? recent.map(t => txCell(t, { date: true })).join('') : `<div class="empty">아직 내역이 없어요<br>오른쪽 위 카메라를 눌러 캡처를 올려 보세요</div>`}</div>`, '', `<button data-act="tab:list">모두 보기</button>`)}
     ${Store.local ? `<div class="local">이 폰에만 저장돼요. ${settings().lastBackup ? `마지막 백업 ${shortDate(settings().lastBackup)}` : '설정에서 백업해 두세요'}</div>` : ''}
   </div>`;
@@ -696,6 +697,7 @@ function viewSettings() {
     <div class="grp">${row('set:cats', 'orange', 'tag', '카테고리', st.cats.expense.length + st.cats.income.length + st.cats.transfer.length + '개')}${row('tab:assets', 'blue', 'bank', '계좌', st.accounts.length + '개')}${row('set:term', 'teal', 'cap', '학기 달', (st.termMonths || []).length + '개월')}</div>
     ${sec('자동 가져오기', `<div class="grp">${row('set:bank', 'blue', 'bank', '은행 내역 가져오기', st.lastBank ? shortDate(st.lastBank) : '안 함')}${row('set:imports', 'gray', 'rotate', '가져온 기록', (st.imports || []).length + '번')}${row('paysettle:pay', 'orange', 'ticket', '청주페이 정산', (acc('pay') || {}).anchor ? shortDate(acc('pay').anchor.d) : '안 함')}</div>`, 'WON통장 엑셀은 일주일에 한 번, 청주페이 정산은 한 달에 한 번이면 충분해요.')}
     ${sec('데이터', `<div class="grp">${row('set:backup', 'blue', 'shield', '백업 파일 저장', st.lastBackup ? shortDate(st.lastBackup) : '안 함')}${row('set:import', 'green', 'rotate', '백업 불러오기')}${PWA ? row('set:key', 'purple', 'camera', 'Claude API 키', apiKey() ? '설정됨' : '없음') : ''}${row('set:export', 'gray', 'box', 'CSV로 내보내기')}${cell({ icon: '<span class="tile gray">' + ico('book') + '</span>', t: '저장된 내역', v: `<span class="muted" style="font-weight:400">${n.toLocaleString('ko-KR')}건</span>` })}</div>`, `${keys.length ? keys[0].replace('-', '.') + ' ~ ' + keys[keys.length - 1].replace('-', '.') : ''} | ${Store.local ? '이 기기에 저장' : 'claude.ai에 저장, 기기 간 동기화'}`)}
+    ${sec('앱 정보', `<div class="grp">${cell({ icon: '<span class="tile gray">' + ico('help') + '</span>', t: '버전', v: `<span class="muted" style="font-weight:400">${APP_VERSION}</span>` })}${PWA ? cell({ act: 'app:update', icon: '<span class="tile blue">' + ico('rotate') + '</span>', t: '새 버전 확인' }) : ''}</div>`)}
     ${sec('쓰는 법', `<div class="grp box"><div class="hint" style="font-size:15px;line-height:1.75;color:var(--sub)">결제 화면을 캡처해서 올리면 AI가 읽어요. 이미 있는 내역은 중복으로 표시돼요.<br>투자, 충전, 현금 인출은 이체라서 쓴 돈에 안 잡혀요.<br>일주일에 한 번 은행 앱 잔액을 넣으면 그날부터 다시 정확해져요.<br>부모님 카드로 쓴 건 계좌를 부모님 카드로 고르면 예산에서 빠져요.</div></div>`)}
   </div>`;
 }
@@ -838,7 +840,7 @@ function buildPrompt() {
   return `당신은 한국 대학생의 가계부 입력 도우미입니다. 첨부한 스크린샷은 토스, 은행, 카드 앱, 또는 청주페이(충북 청주시 지역화폐) 앱의 이용 내역 화면입니다. 화면에 보이는 거래를 빠짐없이 읽고 JSON만 출력하세요.
 
 출력 형식 (JSON 하나만, 다른 글 금지):
-{"source":"toss|card|bank|cheongjupay|other","items":[{"date":"YYYY-MM-DD","merchant":"가게명 또는 내용","amount":12000,"type":"지출|수입|이체","category":"카테고리명","incentive":0,"confidence":0.9}]}
+{"source":"toss|card|bank|cheongjupay|naverpay|kakaopay|other","items":[{"date":"YYYY-MM-DD","merchant":"가게명 또는 내용","amount":12000,"type":"지출|수입|이체","category":"카테고리명","incentive":0,"confidence":0.9}]}
 
 규칙:
 - 오늘은 ${today}. 연도가 안 보이면 ${today.slice(0, 4)}년으로, 날짜가 전혀 없으면 오늘로. 화면에 "어제", "오늘" 같은 상대 표현이 있으면 오늘 기준으로 계산.
@@ -848,6 +850,7 @@ function buildPrompt() {
   지출: ${cats.지출.join(', ')}
   수입: ${cats.수입.join(', ')}
   이체: ${cats.이체.join(', ')}
+- 네이버페이 결제내역 화면이면 source는 naverpay, 카카오페이 결제내역이면 kakaopay. 결제 건마다 가게(상품)명과 금액을 type 지출로 적고, 충전, 포인트 적립, 환불 줄은 빼세요.
 - 청주페이 화면이면 source는 cheongjupay. 각 결제 건은 type 지출로 적고, 그 결제로 적립된 인센티브(적립, 캐시백, 인센티브로 표시된 금액)는 별도 항목으로 만들지 말고 해당 결제 항목의 incentive에 넣으세요. 인센티브 적립 내역만 나열된 화면이면 각 줄을 type 수입, category "청주페이 인센티브"로 적으세요. 충전 건은 type 이체, category "충전".
 - 환불이나 취소 건은 type 수입, category "환불".
 - confidence는 0~1. 글자가 흐리거나 카테고리가 애매하면 낮게.
@@ -864,7 +867,7 @@ function normalizeItems(res) {
     const list = catList(type); let c = String(it.category || '').trim();
     if (!list.some(x => x.n === c)) { const f = list.find(x => c && (x.n.includes(c) || c.includes(x.n))); c = f ? f.n : (type === '이체' ? '계좌 이동' : '기타'); }
     const conf = Number(it.confidence); const rv = !(conf >= 0.7);
-    const a = src === 'cheongjupay' ? 'pay' : (S.aiAcc || st.defaultAccount || 'toss');
+    const a = src === 'cheongjupay' ? 'pay' : src === 'naverpay' ? 'naver' : src === 'kakaopay' ? 'kakao' : (S.aiAcc || st.defaultAccount || 'toss');
     const t = { id: uid(), d, t: type, a, c, v, m: String(it.merchant || '').trim().slice(0, 40), src: 'ai', ts: Date.now() };
     if (rv) t.rv = 1;
     if (type === '이체') { t.to = c === '충전' ? 'pay' : c === '현금 인출' ? 'cash' : 'inv'; if (src === 'cheongjupay' && c === '충전') { t.a = st.defaultAccount || 'toss'; t.to = 'pay'; } }
@@ -912,8 +915,23 @@ async function saveReview() {
   if (!pick.length) { toast('저장할 항목이 없어요'); return; }
   const list = pick.map(t => { const c = { ...t }; delete c._dup; delete c._on; return c; });
   closeSheet(); S.aiFiles = []; S.aiResult = null;
-  try { await saveTx(list); toast(`${list.length}건 저장했어요`); } catch (e) { toast('저장하지 못했어요'); console.warn(e); }
+  for (const w of ['naver', 'kakao']) if (list.some(t => t.a === w)) ensureWallet(w);
+  try { await saveTx(list); const r = await absorbSettlements(list); if (r) await saveSettings();
+    toast(r ? `${list.length}건 저장했어요. ${r}` : `${list.length}건 저장했어요`, 3200); } catch (e) { toast('저장하지 못했어요'); console.warn(e); }
   render();
+}
+/* 지갑에서 가게별 결제를 캡처로 넣으면, 은행 가져오기 때 만든 "○○에서 쓴 돈" 뭉텅이를 그만큼 줄인다 (중복 방지) */
+async function absorbSettlements(list) {
+  const msgs = [];
+  for (const w of ['naver', 'kakao', 'pay']) {
+    const caps = list.filter(t => t.a === w && t.t === '지출'); if (!caps.length) continue;
+    let amt = caps.reduce((s_, t) => s_ + Number(t.v), 0); const from = addDays(caps.map(t => t.d).sort()[0], -10), to = addDays(caps.map(t => t.d).sort().pop(), 10);
+    const lumps = allTx().filter(t => t.sw === w && t.d >= from && t.d <= to).sort((a, b) => (a.d < b.d ? -1 : 1)); const changed = []; const removed = [];
+    for (const l of lumps) { if (amt <= 0) break; const take = Math.min(amt, Number(l.v)); amt -= take; const left = Number(l.v) - take; if (left > 0) { l.v = left; changed.push(l); } else removed.push(l); }
+    if (changed.length) await saveTx(changed); for (const l of removed) await deleteTx(l);
+    if (changed.length || removed.length) msgs.push(`${accName(w)}에서 쓴 돈을 가게별 내역으로 바꿨어요`);
+  }
+  return msgs.join(' ');
 }
 async function aiNote() {
   const sample = await getSample(); if (!sample) { toast(PWA ? '설정에서 Claude API 키를 넣어 주세요' : '이 화면에서는 AI를 쓸 수 없어요'); return; }
@@ -1169,7 +1187,7 @@ function walletSuggestions(items) {
     const mine = items.filter(t => !t.skip && t.wallet === w.id); if (!mine.length) continue;
     let bal = acc_ ? accBalance(w.id) : 0; for (const t of mine) bal += t.to === w.id ? t.v : -t.v;
     if (bal > 0) { const last = mine.filter(t => t.to === w.id).pop() || mine[mine.length - 1];
-      out.push({ id: uid(), d: last.d, ts: last.ts + 1, t: '지출', a: w.id, c: (findRule(w.name + '사용') || {}).c || '기타', v: bal, m: `${w.name}에서 쓴 돈`, src: 'bank', rv: 1, why: `충전 ${fmt(mine.filter(t => t.to === w.id).reduce((s, t) => s + t.v, 0))}원 중 돌려받지 않은 금액`, settle: w.id }); }
+      out.push({ id: uid(), d: last.d, ts: last.ts + 1, t: '지출', a: w.id, c: (findRule(w.name + '사용') || {}).c || '기타', v: bal, m: `${w.name}에서 쓴 돈`, src: 'bank', rv: 1, sw: w.id, why: `충전 ${fmt(mine.filter(t => t.to === w.id).reduce((s, t) => s + t.v, 0))}원 중 돌려받지 않은 금액`, settle: w.id }); }
   }
   return out;
 }
@@ -1226,7 +1244,7 @@ function bankReviewHtml() {
       ${B.last ? `<div class="tiny sub" style="margin-top:12px">저장하면 ${esc(accName(bankAcc()))} 잔액을 <b style="color:var(--fg)">${won(B.last.bal)}</b> (${esc(shortDate(B.last.d))} 기준)으로 맞춰요.</div>` : ''}
       ${B.ai ? `<div class="tiny sub" style="margin-top:4px">처음 보는 가게 ${B.ai}곳은 AI가 카테고리를 추측했어요.</div>` : ''}</div>
     ${sec2('확인이 필요해요', g.check, 'check', true, '사람 이름으로 오간 돈과 처음 보는 곳이에요. 구분과 카테고리를 고르고, 다음에도 같게 하려면 아래 체크를 켜 주세요.')}
-    ${sec2('지갑 정산', g.sug, 'sug', true, '충전한 돈 중 돌려받지 않은 금액은 그 지갑에서 쓴 돈으로 봐요. 아직 지갑에 남아 있다면 체크를 꺼 주세요.')}
+    ${sec2('지갑 정산', g.sug, 'sug', true, '충전한 돈 중 돌려받지 않은 금액은 그 지갑에서 쓴 돈으로 봐요. 어디에 썼는지 모르면 카테고리만 고르세요. 나중에 네이버페이, 카카오페이 앱의 결제내역을 캡처해서 올리면 이 금액이 가게별 내역으로 자동으로 바뀌어요. 아직 지갑에 남아 있는 돈이면 체크를 꺼 주세요.')}
     ${sec2('자동으로 분류했어요', g.auto, 'auto', false)}
     ${sec2('건너뛰어요', g.skip, 'skip', false, '이미 가계부에 있거나 결제 후 취소된 내역이에요.')}
     <button class="btn" data-act="bk2:save">${n}건 저장</button>`;
@@ -1235,9 +1253,9 @@ function bankItem(grp, i) { const g = bankGroups(); return (g[grp] || [])[Number
 async function saveBank() {
   const B = S.bank; if (!B) return; const g = bankGroups(); const batch = 'b' + uid();
   const pick = [...g.check, ...g.auto, ...g.sug].filter(t => t._on !== false);
-  for (const t of pick) if (t._learn) learnRule(t.m, t);
+  for (const t of pick) { if (t._learn) learnRule(t.m, t); if (t.sw && t._touched && t.t === '지출') learnRule(accName(t.sw) + '사용', t); }
   for (const w of WALLETS) if (pick.some(t => t.a === w.id || t.to === w.id)) ensureWallet(w.id);
-  const list = pick.map(t => { const c = { ...t, b: batch }; if (c._touched) delete c.rv; for (const k of ['why', 'wallet', 'person', 'unknown', 'skip', 'dupOf', '_on', '_learn', '_touched', 'settle', 'dir']) delete c[k]; if (c.t !== '이체') delete c.to; return c; });
+  const list = pick.map(t => { const c = { ...t, b: batch }; if (c._touched) delete c.rv; for (const k of ['why', 'wallet', 'person', 'unknown', 'skip', 'dupOf', '_on', '_learn', '_touched', 'settle', 'dir']) delete c[k]; if (c.sw) delete c.rv; if (c.t !== '이체') delete c.to; return c; });
   const A = bankAcc(); const a = acc(A); const prevAnchor = a && a.anchor ? { ...a.anchor } : null;
   if (B.last && a && (!a.anchor || B.last.d >= a.anchor.d)) {
     let ts = B.last.ts; for (const t of allTx()) if ((t.a === A || t.to === A) && t.d <= B.last.d && (t.ts || 0) > ts) ts = t.ts;
@@ -1353,6 +1371,7 @@ document.addEventListener('click', async e => {
     else if (k === 'bk3' && a1 === 'undo') await undoImport(a2, el);
     else if (k === 'ps' && a1 === 'save') await paySettle(a2);
     else if (k === 'paysettle') paySettleSheet(a1);
+    else if (k === 'app' && a1 === 'update') { toast('새 버전을 확인하는 중이에요'); try { const r = navigator.serviceWorker && await navigator.serviceWorker.getRegistration(); if (r) await r.update(); const ks = window.caches ? await caches.keys() : []; for (const c of ks) await caches.delete(c); } catch (e) { /* 무시 */ } setTimeout(() => location.reload(), 600); }
     else if (k === 'key') { if (a1 === 'save') { setApiKey(($('#key_v').value || '').trim()); closeSheet(); toast('키를 저장했어요'); render(); } else if (a1 === 'del') { setApiKey(''); closeSheet(); toast('키를 지웠어요'); render(); } }
     else if (k === 'b' && a1 === 'save') { S.settings.budget = { total: parseAmt($('#b_t').value) }; closeSheet(); await saveSettings(); toast('예산을 저장했어요'); render(); }
     else if (k === 'cats') {
@@ -1399,7 +1418,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet()
 /* ========== 시작 ========== */
 function migrate(s) {
   if (!s.budget) s.budget = { total: 1000000 }; else if (s.budget.total == null) s.budget = { total: (Number(s.budget.living) || 0) + (Number(s.budget.irregular) || 0) + (Number(s.budget.fixed) || 0) };
-  if (!Array.isArray(s.recurring)) s.recurring = []; if (!s.rules || typeof s.rules !== 'object') s.rules = {}; if (!Array.isArray(s.imports)) s.imports = []; if (!s.accounts.some(a => a.id === 'mine')) s.accounts.push({ id: 'mine', name: '다른 내 계좌', type: 'bank', opening: 0 }); s.v = Math.max(Number(s.v) || 0, 4); for (const a of s.accounts) { if (a.e) delete a.e; } if (s.icons) for (const k of Object.keys(s.icons)) if (!P[s.icons[k]]) delete s.icons[k];
+  if (!Array.isArray(s.recurring)) s.recurring = []; if (!s.rules || typeof s.rules !== 'object') s.rules = {}; if (!Array.isArray(s.imports)) s.imports = []; if (!s.accounts.some(a => a.id === 'mine')) s.accounts.push({ id: 'mine', name: '다른 내 계좌', type: 'bank', opening: 0 }); for (const [id, name] of [['naver', '네이버페이'], ['kakao', '카카오페이']]) if (!s.accounts.some(a => a.id === id)) s.accounts.push({ id, name, type: 'prepaid', opening: 0, settle: true }); s.v = Math.max(Number(s.v) || 0, 5); for (const a of s.accounts) { if (a.e) delete a.e; } if (s.icons) for (const k of Object.keys(s.icons)) if (!P[s.icons[k]]) delete s.icons[k];
   return s;
 }
 async function boot() {
